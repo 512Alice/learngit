@@ -1,0 +1,128 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+  background: #f2f5f7;
+  color: #1f2329;
+  min-height: 100vh;
+}
+
+.wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 20px 60px;
+}
+
+.hero { text-align: center; margin-bottom: 28px; }
+.hero h1 {
+  font-size: 30px;
+  color: #00aeec;
+  letter-spacing: 1px;
+}
+.hero .sub {
+  margin-top: 10px;
+  color: #61666d;
+  font-size: 14px;
+}
+.hero .sub b { color: #00aeec; }
+
+.card {
+  background: #fff;
+  border: 1px solid #e3e5e7;
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.input-row { display: flex; gap: 10px; }
+#bn-url {
+  flex: 1;
+  padding: 11px 14px;
+  border: 1px solid #d0d3d6;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .2s;
+}
+#bn-url:focus { border-color: #00aeec; }
+
+button.primary {
+  padding: 11px 22px;
+  border: none;
+  border-radius: 8px;
+  background: #00aeec;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .2s;
+}
+button.primary:hover { background: #00a1d6; }
+button.primary:disabled { opacity: .45; cursor: not-allowed; }
+button.big { width: 100%; padding: 14px 0; font-size: 15px; }
+
+.hint { margin-top: 8px; font-size: 12px; color: #8a9099; }
+.hint code {
+  background: #f2f5f7;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: Consolas, monospace;
+}
+
+.video-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #18191c;
+  word-break: break-all;
+  min-height: 22px;
+}
+.status {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #61666d;
+  min-height: 20px;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+.status.err { color: #e64552; font-weight: 600; }
+.sec-title { font-size: 15px; margin: 0 0 10px; color: #1f2329; }
+#ob-manual { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #d0d3d6; border-radius: 8px; font: 13px/1.6 Consolas, "Microsoft YaHei", monospace; margin-bottom: 10px; resize: vertical; min-height: 120px; }
+
+details summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: #61666d;
+  user-select: none;
+}
+#bn-subtitle {
+  margin-top: 10px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px;
+  background: #fafbfc;
+  border: 1px solid #eef0f2;
+  border-radius: 8px;
+  font-family: Consolas, "Microsoft YaHei", monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #333;
+}
+
+.send-card .tip {
+  margin-top: 12px;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: #8a9099;
+}
+.send-card .tip b { color: #00aeec; }
+
+footer {
+  text-align: center;
+  font-size: 12px;
+  color: #b0b6bd;
+  margin-top: 8px;
+}

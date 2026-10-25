@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>B站学习笔记助手</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <h1>B站学习笔记助手</h1>
+      <p class="sub">粘贴 B 站视频链接，一键把字幕发给豆包，免费生成 <b>思维导图</b> + <b>核心要点</b> + <b>关键节点</b>，并可自动存入 Obsidian</p>
+    </header>
+
+    <section class="card">
+      <div class="input-row">
+        <input id="bn-url" type="text" placeholder="粘贴 B 站视频链接，如 https://www.bilibili.com/video/BV1xx411c7mD" spellcheck="false">
+        <button id="bn-start" class="primary">抓取字幕</button>
+      </div>
+      <p class="hint">支持分 P：在链接后加 <code>&amp;p=3</code> 表示第 3 集（不加默认第 1 集）。</p>
+    </section>
+
+    <section class="card">
+      <div class="video-title" id="bn-video-title">—</div>
+      <div class="status" id="bn-status">打开一个 B 站视频链接，粘贴到上方输入框后点「抓取字幕」。</div>
+    </section>
+
+    <section class="card">
+      <details>
+        <summary>字幕预览（共 <span id="bn-count">0</span> 条）</summary>
+        <pre id="bn-subtitle">抓取字幕后会显示在这里</pre>
+      </details>
+    </section>
+
+    <section class="card send-card">
+      <button id="bn-send" class="primary big" disabled>发送到豆包整理（思维导图 + 要点）</button>
+      <button id="bn-debug" class="secondary big">🔧 调试：用内置测试字幕发送（免B站登录）</button>
+      <p class="tip">
+        前提：请在 Edge 中登录豆包网页 <b>www.doubao.com</b>（登录一次即可）。<br>
+        点击后会自动打开豆包并发送，豆包输出：① 思维导图（Mermaid 代码）② 核心要点 ③ 关键节点时间表。<br>
+        若下方 Obsidian 已配置，整理完成后笔记会<b>自动写入 Obsidian</b>；未配置则只在豆包页查看，可在对话框继续发截图补充。
+      </p>
+    </section>
+
+    <section class="card">
+      <h2 class="sec-title">Obsidian 自动保存设置</h2>
+      <div class="input-row">
+        <input id="ob-api" type="text" placeholder="API 地址（默认 http://127.0.0.1:27123）" spellcheck="false">
+      </div>
+      <div class="input-row">
+        <input id="ob-key" type="password" placeholder="Local REST API 的 API Key" spellcheck="false">
+      </div>
+      <div class="input-row">
+        <input id="ob-dir" type="text" placeholder="保存目录（留空=笔记库根目录，如 学习笔记/）" spellcheck="false">
+      </div>
+      <div class="input-row">
+        <button id="ob-save" class="primary">保存设置</button>
+      </div>
+      <p class="hint">
+        开启方法：Obsidian → 设置 → 第三方插件 → 关闭安全模式 → 社区插件市场搜 <b>Local REST API</b> 安装并启用 →
+        打开它的设置 → 记下 API Key（默认端口 27123）。装好 Obsidian 后按 README 一步步配即可。
+      </p>
+      <div class="status" id="ob-status"></div>
+    </section>
+
+    <section class="card">
+      <h2 class="sec-title">手动保存到 Obsidian（自动抓取失败时用）</h2>
+      <textarea id="ob-manual" rows="8" placeholder="把豆包整理好的笔记内容粘贴到这里，点下方按钮写入 Obsidian"></textarea>
+      <div class="input-row">
+        <button id="ob-manual-save" class="primary">保存到 Obsidian</button>
+      </div>
+      <div class="status" id="ob-manual-status"></div>
+    </section>
+
+    <footer>完全免费 · 字幕与笔记只发给你自己的豆包对话框和本地 Obsidian · 不收集任何数据</footer>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
