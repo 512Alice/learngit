@@ -72,7 +72,7 @@ Everything is free and local-first: no API keys, no large models to download, an
 
 4. 打开 Local REST API 的插件设置：**打开「Enable Insecure Server」（启用 HTTP 服务器）开关**——插件默认主端口是 27124（HTTPS，浏览器不认它的自签名证书），必须启用 HTTP 后扩展才能用 `http://127.0.0.1:27123` 连接；记下 **API Key**。
 
-5. 打开本扩展网页入口，在「Obsidian 自动保存设置」里：**API 地址**保持 `http://127.0.0.1:27123` 默认值（除非你改过端口），**API Key** 粘贴插件里显示的 Key，**保存目录只填 vault 内的相对路径**（如 `mynote` 或 `学习笔记/`，**不要填绝对路径**），点「保存设置」。
+5. 打开本扩展网页入口，在「Obsidian 自动保存设置」里：**API 地址**保持 `http://127.0.0.1:27123` 默认值（除非你改过端口），**API Key** 粘贴插件里显示的 Key，**保存目录只填 vault 内的相对路径**（如 `笔记` 或 `学习笔记/`，**不要填绝对路径**），点「保存设置」。
 
 6. 之后每次发送给豆包整理，豆包回答完会**自动存成 .md 笔记**到 Obsidian（文件名 = 视频标题 + 日期，默认存库根目录；可在设置里填子目录如 `学习笔记/`）。
 
