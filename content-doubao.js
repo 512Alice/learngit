@@ -343,13 +343,23 @@
   // 自动加下标；只处理非代码块/非公式块文本，避免破坏 LaTeX 公式块与 mermaid 思维导图。
   function inlineSymbolsToMath(md) {
     const symbols = [
-      ['UBR', 'U_{BR}'], ['UON', 'U_{ON}'], ['IDQ', 'I_{DQ}'], ['IF', 'I_F'],
-      ['UR', 'U_R'], ['fM', 'f_M'], ['IS', 'I_S'], ['UT', 'U_T'], ['UD', 'U_D'],
-      ['rd', 'r_d'], ['uI', 'u_I'], ['uD', 'u_D'], ['id', 'i_d'], ['iD', 'i_D'],
+      ['UBR', 'U_{BR}'], ['UON', 'U_{ON}'], ['IDQ', 'I_{DQ}'], ['ICQ', 'I_{CQ}'], ['IBQ', 'I_{BQ}'],
+      ['UCEQ', 'U_{CEQ}'], ['UCE', 'U_{CE}'], ['UBE', 'U_{BE}'], ['UCC', 'U_{CC}'], ['UDD', 'U_{DD}'],
+      ['VCC', 'V_{CC}'], ['VDD', 'V_{DD}'],
+      ['IF', 'I_F'], ['UR', 'U_R'], ['fM', 'f_M'], ['IS', 'I_S'], ['UT', 'U_T'], ['ID', 'I_D'], ['UD', 'U_D'],
+      ['rd', 'r_d'], ['rbe', 'r_{be}'], ['rce', 'r_{ce}'], ['gm', 'g_m'],
+      ['uI', 'u_I'], ['uO', 'u_O'], ['uD', 'u_D'], ['id', 'i_d'], ['iD', 'i_D'],
+      ['iB', 'i_B'], ['iC', 'i_C'], ['iE', 'i_E'],
       ['UO', 'U_O'], ['UI', 'U_I'], ['IO', 'I_O'], ['II', 'I_I'],
+      ['IC', 'I_C'], ['IB', 'I_B'], ['IE', 'I_E'], ['UC', 'U_C'], ['UB', 'U_B'], ['UE', 'U_E'],
+      ['RL', 'R_L'], ['RB', 'R_B'], ['RC', 'R_C'], ['RE', 'R_E'], ['RS', 'R_S'],
+      ['CE', 'C_E'], ['CB', 'C_B'], ['CC', 'C_C'],
+      ['fH', 'f_H'], ['fL', 'f_L'], ['fT', 'f_T'], ['Au', 'A_u'], ['Av', 'A_v'], ['Ai', 'A_i'],
       ['U', 'U'], ['I', 'I'], ['Q', 'Q'], ['V', 'V'], ['R', 'R'], ['C', 'C'],
       ['L', 'L'], ['P', 'P'], ['N', 'N'], ['T', 'T']
     ];
+    // 通用兜底时排除的常见英文词/缩写/单位，避免误伤
+    const exclude = new Set(['is','ok','ai','tv','pc','usb','url','app','git','zip','pdf','exe','md','css','js','html','api','key','vip','qq','wx','up','b','to','of','in','on','at','the','and','for','with','as','by','or','an','be','it','no','yes','do','go','we','my','me','he','she','his','her','you','your','this','that','these','those','from','into','out','over','under','about','not','but','so','if','then','than','are','was','were','can','may','must','will','would','shall','have','has','had','does','did','etc','eg','ie','vs','mv','kv','uv','mw','kw','hz','khz','mhz','ghz','ma','ua','ms','us','ns','min','cm','mm','km','kg','mf','uf','nf','pf']);
     // 排除代码块（```...```）、公式块（$$...$$）、行内代码（`...`）
     const parts = String(md || '').split(/(\$\$[\s\S]*?\$\$|```[\s\S]*?```|`[^`\n]*`)/g);
     return parts.map((p, i) => {
@@ -359,6 +369,15 @@
         const re = new RegExp('(?<![A-Za-z0-9_$])' + raw + '(?![A-Za-z0-9_$])', 'g');
         p = p.replace(re, () => '$' + tex + '$');
       }
+      // 通用兜底：中文/标点边界处的 1~3 字母（可带数字下标）串 → $...$（数字转下标）
+      p = p.replace(/(?<![A-Za-z0-9_$\x7B])[A-Za-z]{1,3}[0-9]*(?![A-Za-z0-9_$\x7D])/g, (m) => {
+        const lower = m.toLowerCase();
+        if (exclude.has(lower)) return m;
+        if (/^p\d+$/i.test(m)) return m; // P5、P166 等分 P 标记不转
+        const num = m.match(/^([A-Za-z]+)([0-9]+)$/);
+        if (num) return '$' + num[1] + '_' + num[2] + '$';
+        return '$' + m + '$';
+      });
       return p;
     }).join('');
   }
@@ -393,15 +412,19 @@
   }
 
   // 发送成功后监控豆包的回答：文本稳定后视为整理完成
+  // v3.7.39：监控结束（保存/超时）即释放 __bnWatching，允许连续处理下一个视频。
+  // 此前标志在第一次监控后永久锁死，导致第二个视频发送后无人监控、笔记不生成。
   function watchAnswer(title) {
     if (window.__bnWatching) return; // 同一页面只监控一次，防止多实例重复写文件
     window.__bnWatching = true;
     let answer = '';
     let stable = 0;
     let guard = 0;
+    const release = () => { window.__bnWatching = false; };
     const tick = () => {
       if (guard++ > 100) { // 约 5 分钟超时
         showTip('等待豆包整理超时。请复制豆包的回答，到扩展页「手动保存」粘贴保存。');
+        release();
         return;
       }
       const t = extractAnswerText();
@@ -414,6 +437,7 @@
             lastSavedSig = sig(answer);
             console.log('[B站笔记助手] 检测到回答完成（文本骤降），保存内容长度=' + answer.length);
             finishAnswer(answer, title);
+            release();
             return;
           }
           // 否则视为抖动，忽略本次
@@ -429,6 +453,7 @@
         lastSavedSig = sig(answer);
         console.log('[B站笔记助手] 判定完成，尝试写入 Obsidian，内容长度=' + answer.length);
         finishAnswer(answer, title);
+        release();
         return;
       }
       setTimeout(tick, 3000);
@@ -564,7 +589,8 @@
   // 页面加载完成后轮询 + 监听 storage 变化（覆盖已打开豆包页再触发的情况）
   let tries = 0;
   const poll = () => {
-    if (dead || tries++ >= 60) return;
+    // v3.7.39：轮询上限放宽到 300 次（约 5 分钟），防止豆包页临时不可见时 pending 发送卡死
+    if (dead || tries++ >= 300) return;
     trySend();
     setTimeout(poll, 1000);
   };
