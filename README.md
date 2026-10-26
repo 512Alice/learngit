@@ -10,9 +10,9 @@
 
 3. One click sends the subtitles to **Doubao**, a free AI chatbot, with a tailored prompt.
 
-4. Doubao outputs a clean Markdown note with three parts: **Key Points** (detailed notes organized by topic), **Mind Map** (Mermaid `graph TD`, width-limited layout), and **Key Timestamps** (`[mm:ss]` time + what happens at that point). Math symbols are converted to standard LaTeX (`$I_D$`, `$$...$$`).
+4. Doubao outputs a clean Markdown note with three parts: **Key Points** (detailed notes organized by topic), **Mind Map** (an expandable knowledge tree using Obsidian callouts — click each section title to expand its explanation), and **Key Timestamps** (`[mm:ss]` time + what happens at that point). Math symbols are converted to standard LaTeX with subscripts (`$U_{CE}$`, `$I_Z$`, `$$...$$`).
 
-5. Automatically saves the finished note into **Obsidian** via the free Local REST API plugin — **works continuously for multiple videos** (v3.7.39+).
+5. Automatically saves the finished note into **Obsidian** via the free Local REST API plugin — **works continuously for multiple videos**; note titles use each part's subtitle name (v3.7.40+), and the mind map is an expandable knowledge tree (v3.7.44+).
 
 Everything is free and local-first: no API keys, no large models to download, and no data collection. Notes go only to your own Doubao conversation and your local Obsidian vault.
 
@@ -22,9 +22,9 @@ Everything is free and local-first: no API keys, no large models to download, an
 
 - 字幕只发给你自己的豆包对话框，不经过任何第三方服务器
 
-- 公式在 Obsidian 中由内置 MathJax 原生渲染（`$$...$$`），物理量符号自动转下标（`UD`→`$U_D$`、`R1`→`$R_1$`）
+- 公式在 Obsidian 中由内置 MathJax 原生渲染（`$$...$$`），物理量符号自动转标准下标（`UD`→`$U_D$`、`UZ`→`$U_Z$`、`R1`→`$R_1$`；豆包已输出的 LaTeX 下标如 `U_{CE}` 原样保留，不会二次破坏）
 
-- 思维导图用最通用的 Mermaid `graph TD` 语法，限宽排版（每层 ≤5 个子节点、整图 12~20 节点）
+- 思维导图是可点击展开的知识树（Obsidian 原生 callout `> [!note]-`）：每个核心板块一个折叠块，点击标题展开该板块的详细讲解（v3.7.44+）
 
 - 自动过滤杂鱼内容（字幕回显、历史对话、重复回答），同一回答只保存一次
 
@@ -40,7 +40,7 @@ Everything is free and local-first: no API keys, no large models to download, an
 
 4. 点左上角「加载解压缩的扩展」，选择 `bilibili-note-extension` 文件夹。
 
-> 升级新版本：在 `edge://extensions` 里找到本扩展，点「重新加载」（↻）即可；确认版本号与最新一致（当前 **v3.7.39**）。
+> 升级新版本：在 `edge://extensions` 里找到本扩展，点「重新加载」（↻）即可；确认版本号与最新一致（当前 **v3.7.46**）。
 
 ## 二、前提：登录豆包网页版（只需一次）
 
@@ -108,7 +108,7 @@ Everything is free and local-first: no API keys, no large models to download, an
 
    - 自动把整理提示词 + 字幕填入豆包输入框并发送；
 
-   - 豆包输出三部分：**核心要点**（按主题分小节的 Markdown 笔记）、**思维导图**（Mermaid `graph TD` 代码）、**关键节点**（`[mm:ss]` 时间点 + 该节点内容）。
+   - 豆包输出三部分：**核心要点**（按主题分小节的 Markdown 笔记）、**思维导图**（可点击展开的折叠知识树，Obsidian callout 原生渲染）、**关键节点**（`[mm:ss]` 时间点 + 该节点内容）。
 
 4. 等待豆包整理完成：扩展**自动监控**回答，完成后**自动写入 Obsidian**（若已配置），并在豆包页右上角提示保存路径。
 
@@ -122,9 +122,9 @@ Everything is free and local-first: no API keys, no large models to download, an
 | --- | --- |
 | 豆包页打开但没自动发送 | 插件会自动重试（轮询最多 5 分钟）。仍未发出（豆包页面结构变化时）：插件会把内容**自动复制到剪贴板**并在豆包页右上角弹提示，你在输入框手动粘贴（Ctrl+V）后回车即可。 |
 | 第二个视频不生成笔记 | 旧版本存在监控锁死问题，**升级到 v3.7.39+** 并在 `edge://extensions` 点「重新加载」即可。 |
-| 公式显示不出来 | 确认笔记是 `$$...$$` 格式；Obsidian 内置 MathJax 原生渲染，打开笔记即显示（阅读/预览模式均可）。不需要额外公式插件。 |
+| 公式显示不出来 | 确认笔记是 `$$...$$` / `$...$` 格式；Obsidian 内置 MathJax 原生渲染，打开笔记即显示（阅读/预览模式均可）。不需要额外公式插件。若出现 `U_{C_E}` 这类下标带下划线的问题，升级到 v3.7.46+ 重新生成。 |
 | 笔记里有字幕回显/历史对话/重复内容 | 新版已自动过滤：只保留最后一次 AI 回答，按内容指纹去重，字幕回显与杂鱼文案不入库。 |
-| 思维导图渲染不出来 | 新版已改用最通用的 graph TD 语法（豆包/Obsidian/mermaid.live 均可渲染），并限制宽度避免横铺过长。仍失败时用 mermaid.live 在线预览（打开后粘贴代码）；Obsidian 需 1.4 以上版本。 |
+| 思维导图渲染不出来 | 思维导图已改为可点击展开的知识树（Obsidian 原生 callout 语法 `> [!note]-`），阅读模式点击标题即可展开/收起，无需任何插件。若仍显示为普通引用块，请升级到 v3.7.44+ 并重新生成。 |
 | 提示「没有读到字幕」 | 先确认 Edge 已登录 B 站账号（AI 智能字幕需登录）；仍失败则是该视频 / 分 P 确实没有生成字幕，请换有字幕的视频，或多 P 视频加 `&p=N` 试其他集。 |
 | 字幕内容与视频对不上 | 极少数情况下 B 站接口会返回与分 P 不符的字幕。插件已优先选择与分 P 匹配的字幕，并在发送前弹出字幕开头供你核对；核对不对就不要发送，换链接重试。 |
 | 多 P 视频只整理第一集 | 在链接后加 `&p=N` 指定第 N 集。 |
@@ -146,7 +146,7 @@ Everything is free and local-first: no API keys, no large models to download, an
 | `manifest.json` | 扩展声明（权限、入口、版本） |
 | `app.html` / `app.css` / `app.js` | 网页式入口界面：输入链接、抓字幕、发送豆包、Obsidian 设置 |
 | `background.js` | 后台服务：抓 B 站字幕（含 wbi 签名）、打开豆包 / 网页入口、CDP 发送回车、保存到 Obsidian |
-| `content-doubao.js` | 豆包页面：自动填充字幕并发送、监控回答、Markdown 还原、公式转换（`$$` + 行内下标）、去重过滤、自动保存 |
+| `content-doubao.js` | 豆包页面：自动填充字幕并发送、监控回答、Markdown 还原、公式转换（`$$` + 行内下标）、折叠知识树 callout 修复、去重过滤、自动保存 |
 | `content.js` | B 站页右下角「笔记」快捷按钮 |
 | `content.css` | B 站页按钮样式 |
 | `icons/` | 扩展图标 |

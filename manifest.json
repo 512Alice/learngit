@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "B站学习笔记助手",
-  "version": "3.7.39",
+  "version": "3.7.46",
   "description": "Fetch Bilibili video subtitles and auto-send to Doubao AI to generate study notes: mind map, key points, and key timestamps. Completely free, no API key needed.",
   "permissions": ["storage", "tabs", "scripting", "debugger"],
   "host_permissions": [

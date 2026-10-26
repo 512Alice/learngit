@@ -194,7 +194,13 @@ async function fetchSubtitleByUrl(msg) {
   const target = pages[pi] || pages[0];
   const aid = d.aid;
   const cid = target ? target.cid : d.cid;
-  const title = d.title + (pages.length > 1 ? '（P' + (pi + 1) + '/' + pages.length + '）' : '');
+  // v3.7.40：多P合集优先用分P小标题（pages[i].part）作为笔记标题
+  let title = d.title;
+  if (pages.length > 1 && target && target.part) {
+    const part = String(target.part).trim();
+    if (part && !/^(第\s*\d+\s*集?|P\s*\d+|\d+)$/i.test(part)) title = part;
+    else title = d.title + '（P' + (pi + 1) + '/' + pages.length + '）';
+  }
   const sub = await getSubtitleByAidCid(aid, cid);
   return { lines: sub.lines, source: sub.source, title, bvid, aid, cid, totalPages: pages.length };
 }
@@ -261,7 +267,13 @@ async function fetchSubtitleFromOpenTab() {
         const pages = d.pages || [];
         const target = pages[pi - 1] || pages[0];
         const cid = target ? target.cid : d.cid;
-        const title = d.title + (pages.length > 1 ? '（P' + pi + '/' + pages.length + '）' : '');
+        // v3.7.40：多P合集优先用分P小标题（pages[i].part）作为笔记标题
+        let title = d.title;
+        if (pages.length > 1 && target && target.part) {
+          const part = String(target.part).trim();
+          if (part && !/^(第\s*\d+\s*集?|P\s*\d+|\d+)$/i.test(part)) title = part;
+          else title = d.title + '（P' + pi + '/' + pages.length + '）';
+        }
         let subs = [];
         // 1) v2 接口（页面上下文带 cookie，登录态直接可用）
         try {

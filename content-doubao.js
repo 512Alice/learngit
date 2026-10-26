@@ -187,6 +187,11 @@
     s = s.replace(/<tr[^>]*>([\s\S]*?)<\/tr>/gi, (m, t) => stripTags(t).replace(/\s+/g, ' | ').trim() + '\n');
     s = s.replace(/<th[^>]*>|<\/th>/gi, '');
     s = s.replace(/<td[^>]*>|<\/td>/gi, '');
+    // 7.5) 引用块 → > 行（保留 Obsidian callout 折叠语法，如 > [!note]- 标题，渲染为可点击展开的折叠块）
+    s = s.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (m, inner) => {
+      const txt = stripTags(inner).replace(/&nbsp;/g, ' ');
+      return txt.split('\n').map((ln) => (ln.trim() ? '> ' + ln.trim() : '>')).join('\n') + '\n';
+    });
     // 8) 移除剩余标签
     s = s.replace(/<[^>]*>/g, '');
     s = s.replace(/&nbsp;/g, ' ');
@@ -343,6 +348,9 @@
   // 自动加下标；只处理非代码块/非公式块文本，避免破坏 LaTeX 公式块与 mermaid 思维导图。
   function inlineSymbolsToMath(md) {
     const symbols = [
+      // v3.7.45：稳压管系列（长项在前，避免被短项截胡）
+      ['IZmin', 'I_{Z\\text{min}}'], ['IZmax', 'I_{Z\\text{max}}'], ['UZIZ', 'U_Z I_Z'],
+      ['PZM', 'P_{ZM}'], ['UZ', 'U_Z'], ['IZ', 'I_Z'], ['PZ', 'P_Z'], ['rZ', 'r_Z'],
       ['UBR', 'U_{BR}'], ['UON', 'U_{ON}'], ['IDQ', 'I_{DQ}'], ['ICQ', 'I_{CQ}'], ['IBQ', 'I_{BQ}'],
       ['UCEQ', 'U_{CEQ}'], ['UCE', 'U_{CE}'], ['UBE', 'U_{BE}'], ['UCC', 'U_{CC}'], ['UDD', 'U_{DD}'],
       ['VCC', 'V_{CC}'], ['VDD', 'V_{DD}'],
@@ -366,11 +374,12 @@
       if (i % 2 === 1) return p; // 代码块/公式块/行内代码：不处理
       for (const [raw, tex] of symbols) {
         // 前后不能是字母/数字/下划线/$，避免误伤英文单词、单位（0.7V、26mV）、已生成的 $...$ 公式
-        const re = new RegExp('(?<![A-Za-z0-9_$])' + raw + '(?![A-Za-z0-9_$])', 'g');
+        // v3.7.46：边界排除 {} 与反斜杠——避免把豆包已输出的 LaTeX 下标（如 U_{CE}）二次包裹成 $...$（否则渲染出 U_{C_E}）
+        const re = new RegExp('(?<![A-Za-z0-9_${}\\\\])' + raw + '(?![A-Za-z0-9_${}\\\\])', 'g');
         p = p.replace(re, () => '$' + tex + '$');
       }
       // 通用兜底：中文/标点边界处的 1~3 字母（可带数字下标）串 → $...$（数字转下标）
-      p = p.replace(/(?<![A-Za-z0-9_$\x7B])[A-Za-z]{1,3}[0-9]*(?![A-Za-z0-9_$\x7D])/g, (m) => {
+      p = p.replace(/(?<![A-Za-z0-9_$\x7B\\])[A-Za-z]{1,3}[0-9]*(?![A-Za-z0-9_$\x7D\\])/g, (m) => {
         const lower = m.toLowerCase();
         if (exclude.has(lower)) return m;
         if (/^p\d+$/i.test(m)) return m; // P5、P166 等分 P 标记不转
@@ -382,10 +391,38 @@
     }).join('');
   }
 
+  // v3.7.45：修复 Obsidian callout 折叠块渲染
+  // 1) 连续 callout 之间加空行分隔（否则 Obsidian 会把多个折叠块合并成一个）
+  // 2) 清理豆包回答尾部的自问自答行（一行含 2 个以上中文问号的连续行）
+  function fixCallouts(md) {
+    let s = String(md || '');
+    s = s.replace(/^(> \[!.*)$/gm, '\n$1');
+    s = s.replace(/\n{3,}/g, '\n\n');
+    s = s.replace(/\n+([^\n]*？[^\n]*？[^\n]*)(\n[^\n]*？[^\n]*)*\s*$/g, '');
+    return s.trim();
+  }
+
+  // v3.7.43：强制思维导图竖排——
+  // 1) 无论豆包输出 graph/flowchart 的什么方向，统一转成 TD；
+  // 2) 加 mermaid init（flowchart.rankDir=TB）强制自上而下布局（Obsidian 某些版本对 graph TD 也会横向渲染）
+  function mindmapToTD(md) {
+    return String(md || '').replace(/```mermaid\s*\n([\s\S]*?)```/g, (m, body) => {
+      let inner = body.replace(/\s+$/g, '').trim();
+      // 去掉豆包可能自带的 init 注释，避免重复/冲突
+      inner = inner.replace(/^%%\{.*\}%%\s*\n?/gm, '');
+      inner = inner.replace(/^(graph|flowchart)\s+(?!TD\b|TB\b)([A-Z]{2})\b/im, '$1 TD');
+      inner = '%%{init: {"flowchart": {"rankDir": "TB"}}}%%\n' + inner;
+      return '```mermaid\n' + inner + '\n```';
+    });
+  }
+
   async function finishAnswer(content, title) {
+    // v3.7.45：修复 callout 折叠渲染 + 清理尾部自问自答 + 补回标题行
+    content = inlineSymbolsToMath(latexBlocksToDisplay(mindmapToTD(fixCallouts(content))));
+    if (!/^# 《/.test(content)) content = '# 《' + (title || 'B站笔记') + '》\n\n' + content;
     let resp = null;
     try {
-      resp = await chrome.runtime.sendMessage({ type: 'saveNoteToObsidian', title: title || '', content: inlineSymbolsToMath(latexBlocksToDisplay(content)) });
+      resp = await chrome.runtime.sendMessage({ type: 'saveNoteToObsidian', title: title || '', content });
     } catch (e) {
       resp = { ok: false, error: e.message };
     }
