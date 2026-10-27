@@ -22,7 +22,7 @@ Everything is free and local-first: no API keys, no large models to download, an
 
 - 字幕只发给你自己的豆包对话框，不经过任何第三方服务器
 
-- 公式在 Obsidian 中由内置 MathJax 原生渲染（`$$...$$`），物理量符号自动转标准下标（`UD`→`$U_D$`、`UZ`→`$U_Z$`、`R1`→`$R_1$`；豆包已输出的 LaTeX 下标如 `U_{CE}` 原样保留，不会二次破坏）
+- 公式在 Obsidian 中由内置 MathJax 原生渲染（`$$...$$`），物理量符号自动转标准下标（`UD`→`$U_D$`、`UZ`→`$U_Z$`、`R1`→`$R_1$`；豆包已输出的 LaTeX 下标如 `U_{CE}` 原样保留，不会二次破坏）；希腊字母自动转 LaTeX（`α0`→`$\alpha_0$`、`ρ`→`$\rho$`）、全角绝对值 `∣...∣`→`$|...|$`、级数/极限/求和/偏导/等比连写自动规范化（v3.7.47~53）
 
 - 思维导图是可点击展开的知识树（Obsidian 原生 callout `> [!note]-`）：每个核心板块一个折叠块，点击标题展开该板块的详细讲解（v3.7.44+）
 
@@ -40,7 +40,7 @@ Everything is free and local-first: no API keys, no large models to download, an
 
 4. 点左上角「加载解压缩的扩展」，选择 `bilibili-note-extension` 文件夹。
 
-> 升级新版本：在 `edge://extensions` 里找到本扩展，点「重新加载」（↻）即可；确认版本号与最新一致（当前 **v3.7.46**）。
+> 升级新版本：在 `edge://extensions` 里找到本扩展，点「重新加载」（↻）即可；确认版本号与最新一致（当前 **v3.7.53**）。
 
 ## 二、前提：登录豆包网页版（只需一次）
 

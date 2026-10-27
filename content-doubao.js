@@ -181,6 +181,9 @@
     s = s.replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, (m, t) => '*' + stripTags(t) + '*');
     // 6) 无序列表项 → - 条目
     s = s.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (m, t) => '- ' + stripTags(t) + '\n');
+    // 6.5) 上标/下标（<sup>2</sup> → ^{2}、<sub>1</sub> → _{1}，保住平方/指数语义，防止 x² 退化成 x2）
+    s = s.replace(/<sup>([^<]*)<\/sup>/gi, '^{$1}');
+    s = s.replace(/<sub>([^<]*)<\/sub>/gi, '_{$1}');
     // 7) 段落/换行/表格行
     s = s.replace(/<\/p>/gi, '\n\n');
     s = s.replace(/<br\s*\/?>/gi, '\n');
@@ -340,6 +343,8 @@
         .trim();
       // 去掉可能包裹的单个 $ 或 $$（如此前版本包装的 $公式$）
       inner = inner.replace(/^\$\$?|\$\$?$/g, '').trim();
+      // v3.7.50：块内若嵌套了 $...$（豆包在 ```latex 块内又包 $），去掉多余 $，保留内部 LaTeX
+      inner = inner.replace(/\$([\s\S]*?)\$/g, '$1').trim();
       return '\n$$\n' + inner + '\n$$\n';
     });
   }
@@ -347,6 +352,29 @@
   // 把正文里的物理量符号（IS、UT、UD、IDQ、rd、IF、UR、fM 等纯文本）转成行内公式 $...$，
   // 自动加下标；只处理非代码块/非公式块文本，避免破坏 LaTeX 公式块与 mermaid 思维导图。
   function inlineSymbolsToMath(md) {
+    // v3.7.47：把 LaTeX 行内/显示定界符 \(...\)、\[...\] 统一为 $...$、$$...$$（内部已是 LaTeX，避免二次转换破坏）
+    let src = String(md || '').replace(/\\\(([^\\]*)\\\)/g, (m, c) => '$' + c + '$').replace(/\\\[([^\\]*)\\\]/g, (m, c) => '$$' + c + '$$');
+    // v3.7.48：偏导数符号处理（∂2 → ∂^{2}、∂x2 → ∂x^{2}、∂^{2}φ → $∂^{2}φ$）——在分割前统一公式化，避免 x2 被兜底转成下标
+    src = src.replace(/∂(\d)/g, '∂^{$1}').replace(/(∂[A-Za-z])(\d)/g, '$1^{$2}');
+    // 长形式先转：∂^{2}φ / ∂^{2} / ∂x^{2}（后瞻放行 $，避免相邻公式被前一个的 $ 挡住匹配）
+    src = src.replace(/(?<![A-Za-z0-9_$^{])∂\^\{[^}]*\}φ?(?![A-Za-z0-9_}\\]])/g, (m) => '$' + m + '$');
+    src = src.replace(/(?<![A-Za-z0-9_$^{])∂[A-Za-z]\^\{[^}]*\}(?![A-Za-z0-9_}\\]])/g, (m) => '$' + m + '$');
+    // 短形式：∂φ、∂x、∂ψ 等单独符号也公式化
+    src = src.replace(/(?<![A-Za-z0-9_$^{])∂(?:[A-Za-z]|φ|ψ|θ|α|β)(?![A-Za-z0-9_$}])/g, (m) => '$' + m + '$');
+    // v3.7.49：复数级数/极限等文本公式 → 标准 LaTeX（∑n=1∞zn、N→+∞limSN、n→∞limzn=0）
+    src = src.replace(/∑([A-Za-z])=(\d+)∞([A-Za-z]+)/g, (m, a, b, c) => '\\sum_{' + a + '=' + b + '}^{\\infty} ' + (c.length === 2 ? c[0] + '_' + c[1] : c));
+    src = src.replace(/∑([A-Za-z])=(\d+)∞/g, '\\sum_{$1=$2}^{\\infty}');
+    src = src.replace(/([A-Za-z])→([+-]?)∞lim([A-Za-z]+)/g, (m, a, b, c) => '\\lim_{' + a + '\\to' + (b || '') + '\\infty} ' + (c.length === 2 ? c[0] + '_' + c[1] : c));
+    // v3.7.50：lim 在前写法（limN→+∞、limn→∞，可后跟 $符号$ 一体转换）、∑ 在中间写法（n=1∑∞）、希腊字母 ρ、\left$| 畸形分隔符
+    src = src.replace(/lim([A-Za-z])→([+-]?)∞\$([A-Za-z]{1,3})\$/g, (m, a, b, c) => '\\lim_{' + a + '\\to' + (b || '') + '\\infty} ' + (c.length === 2 ? c[0] + '_' + c[1] : c));
+    src = src.replace(/lim([A-Za-z])→([+-]?)∞/g, (m, a, b) => '\\lim_{' + a + '\\to' + (b || '') + '\\infty}');
+    src = src.replace(/\$?([A-Za-z])\$?=(\d+)∑∞\$([A-Za-z0-9_{}\\=^+\-]*)\$/g, '\\sum_{$1=$2}^{\\infty} $3');
+    src = src.replace(/\$?([A-Za-z])\$?=(\d+)∑∞/g, '\\sum_{$1=$2}^{\\infty}');
+    src = src.replace(/∑\$([A-Za-z]{1,2})(\d*)\$/g, (m, a, b) => '\\sum ' + a + (b ? '^{' + b + '}' : ''));
+    src = src.replace(/(?<![A-Za-z0-9_$])ρ(?![A-Za-z0-9_])/g, '$\\rho$');
+    src = src.replace(/\\left\$([|\\(])/g, '\\left$1').replace(/\\right\$([|\\)])/g, '\\right$1');
+    // 裸 LaTeX（含 \sum/\lim/\int/\frac 命令但未包 $）→ 包 $（只匹配公式字符与空格分隔的后续公式片段，避免包进中文）
+    src = src.replace(/(?<![A-Za-z0-9_$])[A-Za-z0-9_{}\\=^+\-,∞]*\\(?:sum|lim|int|frac|prod)[A-Za-z0-9_{}\\=^+\-,∞]*(?:[ \t]+[A-Za-z0-9_{}\\=^+\-,∞]+)*(?![A-Za-z0-9_$])/g, (m) => '$' + m + '$');
     const symbols = [
       // v3.7.45：稳压管系列（长项在前，避免被短项截胡）
       ['IZmin', 'I_{Z\\text{min}}'], ['IZmax', 'I_{Z\\text{max}}'], ['UZIZ', 'U_Z I_Z'],
@@ -367,19 +395,52 @@
       ['L', 'L'], ['P', 'P'], ['N', 'N'], ['T', 'T']
     ];
     // 通用兜底时排除的常见英文词/缩写/单位，避免误伤
-    const exclude = new Set(['is','ok','ai','tv','pc','usb','url','app','git','zip','pdf','exe','md','css','js','html','api','key','vip','qq','wx','up','b','to','of','in','on','at','the','and','for','with','as','by','or','an','be','it','no','yes','do','go','we','my','me','he','she','his','her','you','your','this','that','these','those','from','into','out','over','under','about','not','but','so','if','then','than','are','was','were','can','may','must','will','would','shall','have','has','had','does','did','etc','eg','ie','vs','mv','kv','uv','mw','kw','hz','khz','mhz','ghz','ma','ua','ms','us','ns','min','cm','mm','km','kg','mf','uf','nf','pf']);
-    // 排除代码块（```...```）、公式块（$$...$$）、行内代码（`...`）
-    const parts = String(md || '').split(/(\$\$[\s\S]*?\$\$|```[\s\S]*?```|`[^`\n]*`)/g);
-    return parts.map((p, i) => {
-      if (i % 2 === 1) return p; // 代码块/公式块/行内代码：不处理
+    const exclude = new Set(['is','ok','ai','tv','pc','usb','url','app','git','zip','pdf','exe','md','css','js','html','api','key','vip','qq','wx','up','b','to','of','in','on','at','the','and','for','with','as','by','or','an','be','it','no','yes','do','go','we','my','me','he','she','his','her','you','your','this','that','these','those','from','into','out','over','under','about','not','but','so','if','then','than','are','was','were','can','may','must','will','would','shall','have','has','had','does','did','etc','eg','ie','vs','mv','kv','uv','mw','kw','hz','khz','mhz','ghz','ma','ua','ms','us','ns','min','cm','mm','km','kg','mf','uf','nf','pf','cos','sin','tan','arg','ln','log','exp','re','im','lim','max','sec','csc','cot']);
+    // v3.7.53：希腊字母 → LaTeX 命令映射（α0 → \alpha_0 等）
+    const greekCmd = { α: 'alpha', β: 'beta', γ: 'gamma', δ: 'delta', θ: 'theta', λ: 'lambda', μ: 'mu', φ: 'phi', ψ: 'psi', ω: 'omega', σ: 'sigma', ε: 'epsilon', π: 'pi', τ: 'tau', η: 'eta', κ: 'kappa', ν: 'nu', ξ: 'xi', ρ: 'rho' };
+    // 排除代码块（```...```）、公式块（$$...$$）、行内代码（`...`）；v3.7.47 起单 $ 公式也分割，避免已生成的 $\mathrm{Re}(z)$ 内部再被转出嵌套 $ 
+    const parts = src.split(/(\$\$[\s\S]*?\$\$|```[\s\S]*?```|`[^`\n]*`|\$[^$\n]+\$)/g);
+    let out = parts.map((p, i) => {
+      if (i % 2 === 1) {
+        // v3.7.50：已生成公式块内，2~3 字母连写（zn、SN、iyn）补下标（z_n、S_N、iy_n），排除函数名/命令词
+        const fnWords = new Set(['cos','sin','tan','cot','sec','csc','arg','ln','log','exp','re','im','lim','max','min','sum','prod','int','det','dim','ker','inf','sup','sqrt','alpha','beta','gamma','theta','phi','psi','infty','partial','times','leq','geq','neq','cdot','dots','ldots','qquad','quad','text','pmod']);
+        let s = p.replace(/\$([A-Za-z]{2,3})\$/g, (m, w) => {
+          if (fnWords.has(w.toLowerCase()) || fnWords.has(w)) return m;
+          return '$' + w.slice(0, -1) + '_' + w.slice(-1) + '$';
+        });
+        // v3.7.51：公式块内命令右大括号后直接跟的连写/数字串补下标（\lim_{...}SN → S_N、\sum_{...}n1 → n_1）
+        s = s.replace(/\}([A-Za-z]{1,2})(\d{1,2})\b/g, '}$1_$2');
+        s = s.replace(/\}([A-Za-z]{2,3})\b/g, (m, w) => {
+          if (fnWords.has(w.toLowerCase()) || fnWords.has(w)) return m;
+          return '}' + w.slice(0, -1) + '_' + w.slice(-1);
+        });
+        return s;
+      }
+      // v3.7.47：上标整体转公式（<sup> 转来的 ^）：x^{2}、re^{iθ} → $...$，保持上标语义；（ ）边界排除以保护 LaTeX 定界符 \(...\)
+      p = p.replace(/(?<![A-Za-z0-9_$^{\\])[A-Za-z]{1,3}\^\{[^}]*\}(?![A-Za-z0-9_$}\\]])/g, (m) => '$' + m + '$');
+      p = p.replace(/(?<![A-Za-z0-9_$^{\\])[A-Za-z]{1,3}\^\d(?![A-Za-z0-9_$^}\\]])/g, (m) => '$' + m + '$');
       for (const [raw, tex] of symbols) {
         // 前后不能是字母/数字/下划线/$，避免误伤英文单词、单位（0.7V、26mV）、已生成的 $...$ 公式
         // v3.7.46：边界排除 {} 与反斜杠——避免把豆包已输出的 LaTeX 下标（如 U_{CE}）二次包裹成 $...$（否则渲染出 U_{C_E}）
         const re = new RegExp('(?<![A-Za-z0-9_${}\\\\])' + raw + '(?![A-Za-z0-9_${}\\\\])', 'g');
         p = p.replace(re, () => '$' + tex + '$');
       }
-      // 通用兜底：中文/标点边界处的 1~3 字母（可带数字下标）串 → $...$（数字转下标）
-      p = p.replace(/(?<![A-Za-z0-9_$\x7B\\])[A-Za-z]{1,3}[0-9]*(?![A-Za-z0-9_$\x7D\\])/g, (m) => {
+      // v3.7.52：文本中 2~3 字母连写紧邻数学运算符（=+-·×,，;；）时，补下标并包 $（zn=xn+iyn → $z_n$=$x_n$+$iy_n$）
+      p = p.replace(/(?<![A-Za-z0-9_$^{\\])([A-Za-z]{2,3})(?=[=+\-·×,，;；])/g, (m, w) => {
+        const lower = w.toLowerCase();
+        if (exclude.has(lower)) return m;
+        if (['cos','sin','tan','cot','sec','csc','arg','ln','log','exp','re','im','lim','max','min','sum','prod','int','sqrt','det','dim','ker','inf','sup','text','quad','qquad','infty','partial','dots','ldots','cdot','times','leq','geq','neq'].indexOf(lower) >= 0) return m;
+        return '$' + w.slice(0, -1) + '_' + w.slice(-1) + '$';
+      });
+      // v3.7.53：绝对值 ∣...∣ → $|...|$（内部希腊字母转 LaTeX、Unicode 减号转 -）
+      p = p.replace(/∣([^∣\n]+)∣/g, (m, inner) => '$|' + inner.replace(/(α|β|γ|δ|θ|λ|μ|φ|ψ|ω|σ|ε|π|τ|η|κ|ν|ξ|ρ)(\d)/g, (x, g, d) => '\\' + greekCmd[g] + '_' + d).replace(/(α|β|γ|δ|θ|λ|μ|φ|ψ|ω|σ|ε|π|τ|η|κ|ν|ξ|ρ)/g, (x, g) => '\\' + greekCmd[g]).replace(/−/g, '-') + '|$');
+      // v3.7.53：文本中希腊字母转 LaTeX 命令并包 $（含下标：α0 → $\alpha_0$）
+      for (const g of Object.keys(greekCmd)) {
+        p = p.replace(new RegExp('(?<![A-Za-z0-9_$\\\\])' + g + '(\\d)(?![A-Za-z0-9_$\\\\])', 'g'), (m, d) => '$\\' + greekCmd[g] + '_' + d + '$');
+        p = p.replace(new RegExp('(?<![A-Za-z0-9_$\\\\])' + g + '(?![A-Za-z0-9_$\\\\])', 'g'), '$\\' + greekCmd[g] + '$');
+      }
+      // 通用兜底：中文/标点边界处的 1~3 字母（可带数字下标）串 → $...$（数字转下标）；| 为绝对值边界不包
+      p = p.replace(/(?<![A-Za-z0-9_$|{\\])[A-Za-z]{1,3}[0-9]*(?![A-Za-z0-9_$|}\\])/g, (m) => {
         const lower = m.toLowerCase();
         if (exclude.has(lower)) return m;
         if (/^p\d+$/i.test(m)) return m; // P5、P166 等分 P 标记不转
@@ -389,6 +450,12 @@
       });
       return p;
     }).join('');
+    // v3.7.47：修复分割块内（已生成公式）的旧版坏格式：稳压管符号无下标、虚数单位幂次
+    // v3.7.51：最后清理 $$ 独占行块内嵌套 $（裸 LaTeX 包 $ 可能把块内 \sum 又包了一层）
+    out = out.replace(/^[ \t]*\$\$[ \t]*\n?([\s\S]*?)\n?[ \t]*\$\$[ \t]*$/gm, (m, body) => '$$\n' + body.replace(/\$/g, '').split('\n').map(l => l.trim()).filter(Boolean).join('\n') + '\n$$');
+    out = out.replace(/\$UZ\$/g, '$U_Z$').replace(/\$IZ\$/g, '$I_Z$').replace(/\$PZ\$/g, '$P_Z$').replace(/\$rZ\$/g, '$r_Z$').replace(/\$PZM\$/g, '$P_{ZM}$');
+    out = out.replace(/\$i_(\d)\$/g, '$i^$1$');
+    return out;
   }
 
   // v3.7.45：修复 Obsidian callout 折叠块渲染
